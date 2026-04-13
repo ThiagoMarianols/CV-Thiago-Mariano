@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Project {
@@ -26,16 +26,60 @@ export function Projects() {
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: number]: number }>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedImageTitle, setSelectedImageTitle] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
 
-  const openModal = (imageUrl: string, projectTitle: string) => {
+  const openModal = (imageUrl: string, projectTitle: string, projectId: number, imageIndex: number) => {
     setSelectedImage(imageUrl);
     setSelectedImageTitle(projectTitle);
+    setSelectedProjectId(projectId);
+    setSelectedImageIndex(imageIndex);
   };
 
   const closeModal = () => {
     setSelectedImage(null);
     setSelectedImageTitle('');
+    setSelectedProjectId(null);
+    setSelectedImageIndex(0);
   };
+
+  const navigateModalImage = (direction: 'prev' | 'next') => {
+    if (selectedProjectId === null) return;
+    
+    const project = projects.find(p => p.id === selectedProjectId);
+    if (!project?.images) return;
+    
+    const imageCount = project.images.length;
+    let newIndex: number;
+    
+    if (direction === 'next') {
+      newIndex = (selectedImageIndex + 1) % imageCount;
+    } else {
+      newIndex = selectedImageIndex - 1;
+      if (newIndex < 0) newIndex = imageCount - 1;
+    }
+    
+    setSelectedImageIndex(newIndex);
+    setSelectedImage(project.images[newIndex]);
+  };
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedImage) return;
+      
+      if (e.key === 'ArrowLeft') {
+        navigateModalImage('prev');
+      } else if (e.key === 'ArrowRight') {
+        navigateModalImage('next');
+      } else if (e.key === 'Escape') {
+        closeModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImage, selectedImageIndex, selectedProjectId]);
 
   const handleNextImage = (projectId: number) => {
     setCurrentImageIndex(prev => {
@@ -285,7 +329,7 @@ export function Projects() {
                             src={image} 
                             alt={`${project.title} - Imagem ${index + 1}`}
                             className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                            onClick={() => openModal(image, project.title)}
+                            onClick={() => openModal(image, project.title, project.id, index)}
                           />
                         </div>
                       ))}
@@ -490,6 +534,24 @@ export function Projects() {
               </svg>
             </button>
             
+            {/* Navigation Arrows */}
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateModalImage('prev'); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition-colors z-10"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateModalImage('next'); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-3 rounded-full hover:bg-black/70 transition-colors z-10"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            
             {/* Image */}
             <img 
               src={selectedImage} 
@@ -497,6 +559,13 @@ export function Projects() {
               className="w-full h-full object-contain max-h-[85vh] rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
+            
+            {/* Image Counter */}
+            {selectedProjectId && (
+              <p className="text-white/70 text-center mt-2 text-sm">
+                {selectedImageIndex + 1} / {projects.find(p => p.id === selectedProjectId)?.images?.length}
+              </p>
+            )}
             
             {/* Title */}
             <p className="text-white text-center mt-4 text-lg">
